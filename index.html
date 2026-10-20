@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101827">
-<title>カード売買管理</title>
+<title>カード管理アプリ　セドラーさん</title>
 <style>
 :root{--bg:#0b1220;--panel:#121d30;--panel2:#18253a;--text:#f4f7fb;--muted:#9cabc1;--line:#2a3a52;--accent:#7c9cff;--green:#63d6a0;--red:#ff8b8b}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#101a2c,#0b1220 260px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:0 0 calc(86px + env(safe-area-inset-bottom));}
-header{padding:24px 18px 16px;position:sticky;top:0;background:#101a2cf2;backdrop-filter:blur(14px);z-index:3;border-bottom:1px solid #26364c}
+header{padding:8px 18px 16px;position:sticky;top:0;background:#101a2cf2;backdrop-filter:blur(14px);z-index:3;border-bottom:1px solid #26364c}
 h1{font-size:23px;margin:0 0 5px;letter-spacing:.02em}.sub{color:var(--muted);font-size:12px}
 main{max-width:760px;margin:auto;padding:16px;display:grid;gap:16px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .metric,.panel{background:linear-gradient(145deg,var(--panel),#111a2a);border:1px solid var(--line);border-radius:18px;padding:15px;box-shadow:0 8px 24px #0002}
@@ -39,9 +39,10 @@ form{display:grid;gap:11px}.fields{display:grid;grid-template-columns:1fr 1fr;ga
 </style>
 </head>
 <body>
-<header><h1>🃏 カード売買管理</h1><div class="sub">仕入れ・販売・利益をまとめて管理</div></header>
+<header><h1>カード管理アプリ　セドラーさん</h1><div class="sub">仕入れ・販売・利益をまとめて管理</div></header>
 <main>
 <section class="metrics">
+ <div class="metric"><span>買った物の合計</span><strong id="mBought">¥0</strong><small>これまでの仕入れ総額</small></div>
  <div class="metric"><span>売上合計</span><strong id="mSales">¥0</strong><small>販売記録の合計</small></div>
  <div class="metric"><span>売れた分の原価</span><strong id="mCost">¥0</strong><small>販売済みカードの仕入れ額</small></div>
  <div class="metric"><span>利益（手数料等込み）</span><strong id="mProfit">¥0</strong><small>売上 − 原価 − 経費</small></div>
@@ -129,7 +130,7 @@ function soldFor(buyId){return data.sells.filter(s=>s.buyId===buyId).reduce((a,s
 function remaining(b){return b.qty-soldFor(b.id)}
 function lotCost(s){const b=data.buys.find(b=>b.id===s.buyId);return b?b.unitCost*s.qty:0}
 function saleProfit(s){return s.qty*s.unitPrice-lotCost(s)-s.fee-s.ship}
-function allStats(){let sales=data.sells.reduce((a,s)=>a+s.qty*s.unitPrice,0),cost=data.sells.reduce((a,s)=>a+lotCost(s),0),expenses=data.sells.reduce((a,s)=>a+s.fee+s.ship,0),stockQty=0,stockCost=0;data.buys.forEach(b=>{let r=remaining(b);stockQty+=r;stockCost+=r*b.unitCost});return {sales,cost,expenses,profit:sales-cost-expenses,stockQty,stockCost}}
+function allStats(){let sales=data.sells.reduce((a,s)=>a+s.qty*s.unitPrice,0),cost=data.sells.reduce((a,s)=>a+lotCost(s),0),expenses=data.sells.reduce((a,s)=>a+s.fee+s.ship,0),bought=data.buys.reduce((a,b)=>a+b.qty*b.unitCost,0),stockQty=0,stockCost=0;data.buys.forEach(b=>{let r=remaining(b);stockQty+=r;stockCost+=r*b.unitCost});return {sales,cost,expenses,bought,profit:sales-cost-expenses,stockQty,stockCost}}
 function toast(msg){const old=document.querySelector('.toast');if(old)old.remove();const e=document.createElement('div');e.className='toast';e.textContent=msg;document.body.append(e);setTimeout(()=>e.remove(),2200)}
 function switchTab(t){document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('buyPane').classList.toggle('hidden',t!=='buy');$('sellPane').classList.toggle('hidden',t!=='sell');if(t==='sell')refreshLots();window.scrollTo({top:0,behavior:'smooth'})}
 document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
@@ -143,7 +144,7 @@ $('buyForm').addEventListener('submit',e=>{e.preventDefault();const b={id:crypto
 function refreshLots(){const select=$('sellLot'),old=select.value;const available=data.buys.filter(b=>remaining(b)>0);select.innerHTML=available.length?'<option value="">カードを選択</option>'+available.map(b=>`<option value="${esc(b.id)}">${esc(b.name)} — 残り${remaining(b)}枚（仕入れ ${yen(b.unitCost)}/枚）</option>`).join(''):'<option value="">在庫がありません</option>';if(available.some(b=>b.id===old))select.value=old;updateSellPreview()}
 function updateSellPreview(){const b=data.buys.find(b=>b.id===$('sellLot').value),qty=num('sellQty'),price=num('sellPrice'),fee=num('sellFee'),ship=num('sellShip');const max=b?remaining(b):0;$('sellQty').max=max||1;$('sellPreview').textContent=b?`販売利益の見込み：${yen(qty*price-qty*b.unitCost-fee-ship)}（在庫 ${max}枚）`:'カードを選ぶと利益を計算します';}
 $('sellForm').addEventListener('submit',e=>{e.preventDefault();const b=data.buys.find(b=>b.id===$('sellLot').value),qty=Math.floor(num('sellQty'));if(!b)return toast('販売するカードを選んでね');if(qty<1||qty>remaining(b))return toast(`在庫は${remaining(b)}枚だよ`);const s={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),buyId:b.id,qty,unitPrice:num('sellPrice'),date:$('sellDate').value,fee:num('sellFee'),ship:num('sellShip'),memo:$('sellMemo').value.trim(),created:Date.now()};data.sells.unshift(s);save();e.target.reset();$('sellQty').value=1;$('sellFee').value=0;$('sellShip').value=0;$('sellDate').value=today();toast('販売を保存したよ');switchTab('sell')});
-function render(){const st=allStats();$('mSales').textContent=yen(st.sales);$('mCost').textContent=yen(st.cost);$('mProfit').textContent=yen(st.profit);$('mProfit').className=st.profit<0?'negative':'';$('mStock').textContent=st.stockQty+'枚';$('mStockCost').textContent='在庫原価 '+yen(st.stockCost);renderStock();renderHistory();renderMonthly();renderMarket();refreshLots()}
+function render(){const st=allStats();$('mBought').textContent='-'+yen(st.bought);$('mSales').textContent=yen(st.sales);$('mCost').textContent=yen(st.cost);$('mProfit').textContent=yen(st.profit);$('mProfit').className=st.profit<0?'negative':'';$('mStock').textContent=st.stockQty+'枚';$('mStockCost').textContent='在庫原価 '+yen(st.stockCost);renderStock();renderHistory();renderMonthly();renderMarket();refreshLots()}
 function renderStock(){const q=$('search').value.trim().toLowerCase(),f=$('stockFilter').value;const groups=new Map();data.buys.forEach(b=>{if(!groups.has(b.name))groups.set(b.name,{name:b.name,qty:0,remaining:0,cost:0,lots:[]});const g=groups.get(b.name);g.qty+=b.qty;g.remaining+=remaining(b);g.cost+=remaining(b)*b.unitCost;g.lots.push(b)});let arr=[...groups.values()].filter(g=>g.name.toLowerCase().includes(q)&&(f==='all'||(f==='stock'?g.remaining>0:g.remaining===0))).sort((a,b)=>b.remaining-a.remaining);$('stockCount').textContent=arr.length+'種類';$('stockList').innerHTML=arr.length?arr.map(g=>`<div class="item"><div class="itemtop"><div><div class="itemtitle">${esc(g.name)}</div><div class="meta">仕入れ総数 ${g.qty}枚 ・ 在庫 ${g.remaining}枚</div></div><div class="amount">${yen(g.cost)}<div class="meta">在庫原価</div></div></div><div class="itemactions">${g.lots.map(b=>`<span class="pill">${esc(b.date)} / 残${remaining(b)}枚 / ${yen(b.unitCost)}</span>`).join(' ')}</div></div>`).join(''):'<div class="empty">該当するカードがないよ。まず仕入れを登録してね。</div>'}
 function renderHistory(){let rows=[];data.buys.forEach(b=>rows.push({type:'buy',date:b.date,created:b.created,id:b.id,title:b.name,qty:b.qty,amount:b.qty*b.unitCost,memo:b.memo,raw:b}));data.sells.forEach(s=>{const b=data.buys.find(b=>b.id===s.buyId);rows.push({type:'sell',date:s.date,created:s.created,id:s.id,title:b?b.name:'削除された仕入れ',qty:s.qty,amount:s.qty*s.unitPrice,profit:saleProfit(s),memo:s.memo,raw:s})});rows=rows.filter(r=>historyMode==='all'||r.type===historyMode).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.created||0)-(a.created||0));$('historyList').innerHTML=rows.length?rows.map(r=>`<div class="item"><div class="itemtop"><div><div class="itemtitle">${esc(r.title)} <span class="pill">${r.type==='buy'?'仕入れ':'販売'}</span></div><div class="meta">${esc(r.date)} ・ ${r.qty}枚${r.memo?' ・ '+esc(r.memo):''}</div></div><div class="amount">${r.type==='buy'?'-':'+'}${yen(r.amount)}${r.type==='sell'?`<div class="meta ${r.profit>=0?'positive':'negative'}">利益 ${r.profit>=0?'+':''}${yen(r.profit)}</div>`:''}</div></div><div class="itemactions"><button class="secondary danger" data-delete="${r.type}:${esc(r.id)}">この記録を削除</button></div></div>`).join(''):'<div class="empty">まだ記録がないよ。</div>'}
 document.querySelectorAll('[data-history]').forEach(b=>b.addEventListener('click',()=>{historyMode=b.dataset.history;document.querySelectorAll('[data-history]').forEach(x=>x.classList.toggle('active',x===b));renderHistory()}));
